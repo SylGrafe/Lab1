@@ -61,8 +61,18 @@ class ConfigAndResults:
 
 # overwrite __str__ used when printing an instance of the class
   def __str__(self):
-    return "(%s %s\n%s\n%s\n%s) " % (modelStruct , self.compInfo,self.histDict , 
+    return "(%s %s\n%s\n\n%s\n%s) " % (self.modelStruct , self.compInfo,self.histDict , 
     self.histParams , self.timeStamp)
+
+
+  def toString (self):
+    # print ("here in toString")
+    # full trick to be able to round the values of the floats
+    selfDict = round_floats(self.__dict__)
+    selfNT = namedtuple("selfNT", selfDict.keys())(*selfDict.values())
+    
+    return "(%s %s\n%s\n\n%s\n%s) " % (selfNT.modelStruct , selfNT.compInfo,
+    selfNT.histDict , selfNT.histParams , selfNT.timeStamp)
 
 
 

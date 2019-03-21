@@ -61,8 +61,18 @@ class ConfigAndResults:
 
 # overwrite __str__ used when printing an instance of the class
   def __str__(self):
-    return "(%s %s\n%s\n%s\n%s) " % (modelStruct , self.compInfo,self.histDict , 
+    return "(%s %s\n%s\n\n%s\n%s) " % (self.modelStruct , self.compInfo,self.histDict , 
     self.histParams , self.timeStamp)
+
+
+  def toString (self):
+    # print ("here in toString")
+    # full trick to be able to round the values of the floats
+    selfDict = round_floats(self.__dict__)
+    selfNT = namedtuple("selfNT", selfDict.keys())(*selfDict.values())
+    
+    return "(%s %s\n%s\n%s\n%s) " % (selfNT.modelStruct , selfNT.compInfo,
+    selfNT.histDict , selfNT.histParams , selfNT.timeStamp)
 
 
 
@@ -285,8 +295,8 @@ def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 ):
 def printOneRes ( xxZZ ):
   try : 
         print (" %s, %s , %s " % (xxZZ.modelStruct ,xxZZ.compInfo , xxZZ.timeStamp)) 
-        print (" testRes %s  %s " % (xxZZ.testRes  , xxZZ.histParams)) 
-        print ("  %s  %s " % ("TODO"  , "TODO")) 
+        print (" testRes %s  " % (xxZZ.testRes  )) 
+        print ("\nhistParams: %s " % (  xxZZ.histParams)) 
   except Exception as e:
     print ("\n********** printOneResFromFile()  fatal error %s" % ( str(e)))
     return None
