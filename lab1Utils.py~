@@ -71,7 +71,7 @@ class ConfigAndResults:
     selfDict = round_floats(self.__dict__)
     selfNT = namedtuple("selfNT", selfDict.keys())(*selfDict.values())
     
-    return "(%s %s\n%s\n%s\n%s) " % (selfNT.modelStruct , selfNT.compInfo,
+    return "(%s %s\n%s\n\n%s\n%s) " % (selfNT.modelStruct , selfNT.compInfo,
     selfNT.histDict , selfNT.histParams , selfNT.timeStamp)
 
 
@@ -217,10 +217,10 @@ def printHeadersFromFile (theDumpFileName):
     ii=0
     for someDict in decode_stacked(document):
       # use named tulpe to access the dict as it would be real instance of ConfigAndResults 
-      xxYY = namedtuple("XXYY", someDict.keys())(*someDict.values())
-      ii+=1
+      someNT = namedtuple("SomeNT", someDict.keys())(*someDict.values())
       print(" %2d, ref:%s ,  model: %s , ,info: %s\n test[loss,acc]: %s\n" % 
-      (ii, xxYY.timeStamp , xxYY.modelStruct , xxYY.info, xxYY.testRes ) )
+      (ii, someNT.timeStamp , someNT.modelStruct , someNT.info, someNT.testRes ) )
+      ii+=1
     print ("************************************************")
 
     # close the file, just for safety
@@ -256,11 +256,11 @@ def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 ):
     # remember that the info  read from the dump file are  dictionnaries
     for someDict in decode_stacked(document):
       # use named tulpe to access the dict as it would be real instance of ConfigAndResults 
-      xxYY = namedtuple("XXYY", someDict.keys())(*someDict.values())
-      if (ii == ind or xxYY.timeStamp == refStr ):
+      someNT = namedtuple("SomeNT", someDict.keys())(*someDict.values())
+      if (ii == ind or someNT.timeStamp == refStr ):
         foundRes=True
-        print (" %s got record for  %d" % (refStr , ii)) 
-        return xxYY
+        # print (" %s got record for  %d" % (refStr , ii)) 
+        return someNT
       ii+=1
 
     if not  foundRes:
@@ -292,13 +292,13 @@ def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 ):
     self.testRes = testRes # if not empty test Resultat        
 
 """
-def printOneRes ( xxZZ ):
+def printOneRes ( someResult):
   try : 
-        print (" %s, %s , %s " % (xxZZ.modelStruct ,xxZZ.compInfo , xxZZ.timeStamp)) 
-        print (" testRes %s  " % (xxZZ.testRes  )) 
-        print ("\nhistParams: %s " % (  xxZZ.histParams)) 
+     print (" %s, %s , %s " % (someResult.modelStruct ,someResult.compInfo , someResult.timeStamp)) 
+     print (" test Results %s  " % (someResult.testRes  )) 
+     print ("\nhistory Params: %s " % (  someResult.histParams)) 
   except Exception as e:
-    print ("\n********** printOneResFromFile()  fatal error %s" % ( str(e)))
+    print ("\n********** printOneRes()  fatal error %s" % ( str(e)))
     return None
 
 
@@ -367,7 +367,7 @@ def doProceedUserInput (theDumpFileName):
       print ( theInfo)
       return   
     if (userStr.lower().find('s') != -1 ):
-
+      # the user ask to see a summary of all records in the dumpfile
       printHeadersFromFile (theDumpFileName)
       return    
     if (userStr.lower().find('e') == 0 ):
@@ -389,10 +389,6 @@ def doProceedUserInput (theDumpFileName):
       # maybe the user did not enter the string after the indicise
       print ("doProceedUserInput invalid input %s should be an indice" % indStr)
       return
-
-    print ("doProceedUserInput () userStr:%s " % (userStr))
-    print ("doProceedUserInput () indStr:%s " % (indStr))
-
 
     someRes = getOneResFromFile (theDumpFileName , ind=theInd)
     if (someRes):
