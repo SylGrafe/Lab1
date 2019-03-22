@@ -45,7 +45,7 @@ class ConfigAndResults:
 
 # the constructor
   def __init__(self,modelStruct, compInfo,histDict ,
-          histParams , timeStamp, info="" ,h5 = ""  , testRes = None):
+          histParams , timeStamp, info="" ,h5 = ""  , testRes = None , codeRef="" ):
     self.modelStruct = modelStruct  # string to identify the model  layers
     self.compInfo = compInfo  # more info about compilation
     self.histDict = histDict # history.history
@@ -55,13 +55,14 @@ class ConfigAndResults:
     self.info = info # if not empty more info to identify the test
     self.h5 = h5 # if not empty name of the saved model 
     self.testRes = testRes # if not empty test Resultat        
-  
+    self.codeRef = codeRef # name of the pgm who created the instance
   def print_params (self):
     print (self.histParams)
 
 # overwrite __str__ used when printing an instance of the class
   def __str__(self):
-    return "(%s %s\n%s\n\n%s\n%s) " % (self.modelStruct , self.compInfo,self.histDict , 
+    return "(%s %s \n%s s\n%s\n\n%s\n%s) " % (self.codeRef , self.modelStruct,
+    self.compInfo,self.histDict , 
     self.histParams , self.timeStamp)
 
 
@@ -71,8 +72,9 @@ class ConfigAndResults:
     selfDict = round_floats(self.__dict__)
     selfNT = namedtuple("selfNT", selfDict.keys())(*selfDict.values())
     
-    return "(%s %s\n%s\n\n%s\n%s) " % (selfNT.modelStruct , selfNT.compInfo,
-    selfNT.histDict , selfNT.histParams , selfNT.timeStamp)
+    return "(%s %s at:%s \n%s\n\n%s\n%s) " % (selfNT.codeRef , selfNT.modelStruct 
+    , selfNT.timeStamp , selfNT.compInfo,
+    selfNT.histDict , selfNT.histParams )
 
 
 
@@ -106,16 +108,9 @@ def dumpOnFile (someObj , theDumpFileName):
 def plotHist (someNamedTulpe ):
 
   try : 
-    """
-     self.modelStruct = x0  # string to identify the model  layers
-    self.compInfo = x1  # more info about compilation
-    self.histDict = x2 # history.history
-    self.histParams = x3  # history.params
-    self.timeStamp = x4  # time at which the pgm which create a instance of this class was started
-    
-    """
     theHistDict = someNamedTulpe.histDict
-    theTitle  = someNamedTulpe.modelStruct + someNamedTulpe.info
+    theTitle  = someNamedTulpe.codeRef + ", " +someNamedTulpe.modelStruct +\
+            ", "         + someNamedTulpe.info
 
     if not isinstance (theHistDict, dict) :
       print ("\n**** plotHist() failure expecting a dict and got: %s"  % (type(theHistDict)) )
@@ -204,29 +199,20 @@ def printHeadersFromFile (theDumpFileName):
     # now open a file for reading
     filePtr2 = open(theDumpFileName, 'r')
     document = filePtr2.read()
-    """
-    self.modelStruct = x0  # string to identify the model  layers
-    self.compInfo = x1  # more info about compilation
-    self.histDict = x2 # history.history
-    self.histParams = x3  # history.params
-    self.timeStamp = x4  # time at which the pgm which create a instance of this class was started
-    self.info = info # if not empty more info to identify the test
-    self.h5 = h5 # if not empty name of the saved model 
-    """    
 
     ii=0
     for someDict in decode_stacked(document):
       # use named tulpe to access the dict as it would be real instance of ConfigAndResults 
       someNT = namedtuple("SomeNT", someDict.keys())(*someDict.values())
-      print(" %2d, ref:%s ,  model: %s , ,info: %s\n test[loss,acc]: %s\n" % 
-      (ii, someNT.timeStamp , someNT.modelStruct , someNT.info, someNT.testRes ) )
+      print(" %2d, ref:%s at %s ,  model: %s , ,info: %s\n test[loss,acc]: %s\n" % 
+      (ii, someNT.codeRef ,someNT.timeStamp , someNT.modelStruct , someNT.info,  someNT.testRes ) )
       ii+=1
     print ("************************************************")
 
     # close the file, just for safety
     filePtr2.close()
   except Exception as e:
-    print ("\n********** printAllFromFile() %s fatal error %s" % (theDumpFileName , str(e)))
+    print ("\n********** printHeaderFromFile() %s fatal error %s" % (theDumpFileName , str(e)))
 
 
 ################################################### function getOneResFromFile(...)
@@ -235,22 +221,12 @@ def printHeadersFromFile (theDumpFileName):
 def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 ):
   try : 
     if (not os.path.isfile(theDumpFileName)):
-      print("printAllFromFile(), FATAL error %s is not a file"  %  ( theDumpFileName ) )
+      print("getOneResFromFile(), FATAL error %s is not a file"  %  ( theDumpFileName ) )
       return
 
     # now open a file for reading
     filePtr2 = open(theDumpFileName, 'r')
     document = filePtr2.read()
-    """
-    self.modelStruct = x0  # string to identify the model  layers
-    self.compInfo = x1  # more info about compilation
-    self.histDict = x2 # history.history
-    self.histParams = x3  # history.params
-    self.timeStamp = x4  # time at which the pgm which create a instance of this class was started
-    self.info = info # if not empty more info to identify the test
-    self.h5 = h5 # if not empty name of the saved model 
-    """    
-
     ii=0
     foundRes=False
     # remember that the info  read from the dump file are  dictionnaries
@@ -277,24 +253,11 @@ def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 ):
 ################################################### function printOneRes(...)
 # expecting a namedtuple  similar to an instance of ConfigAndResults
 # print some parts of the content
-
-"""
-  def __init__(self,modelStruct, compInfo,histDict ,
-          histParams , timeStamp, info="" ,h5 = ""  , testRes = None):
-    self.modelStruct = modelStruct  # string to identify the model  layers
-    self.compInfo = compInfo  # more info about compilation
-    self.histDict = histDict # history.history
-    self.histParams = histParams  # history.params
-    self.timeStamp = timeStamp  
-      # time at which the pgm which create a instance of this class was started
-    self.info = info # if not empty more info to identify the test
-    self.h5 = h5 # if not empty name of the saved model 
-    self.testRes = testRes # if not empty test Resultat        
-
-"""
 def printOneRes ( someResult):
+
   try : 
-     print (" %s, %s , %s " % (someResult.modelStruct ,someResult.compInfo , someResult.timeStamp)) 
+     print (" %s, %s, %s, %s " %  (someResult.codeRef ,someResult.modelStruct ,
+                    someResult.compInfo , someResult.timeStamp)) 
      print (" test Results %s  " % (someResult.testRes  )) 
      print ("\nhistory Params: %s " % (  someResult.histParams)) 
   except Exception as e:
