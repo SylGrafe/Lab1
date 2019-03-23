@@ -72,8 +72,8 @@ class ConfigAndResults:
     selfDict = round_floats(self.__dict__)
     selfNT = namedtuple("selfNT", selfDict.keys())(*selfDict.values())
     
-    return "(%s %s at:%s \n%s\n\n%s\n%s) " % (selfNT.codeRef , selfNT.modelStruct 
-    , selfNT.timeStamp , selfNT.compInfo,
+    return "(%s %s at:%s \ncompInfo %s\ninfo:\n\n%s\n%s) " % (selfNT.codeRef , selfNT.modelStruct 
+    , selfNT.timeStamp , selfNT.compInfo, selfNT.info,
     selfNT.histDict , selfNT.histParams )
 
 
@@ -253,13 +253,22 @@ def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 ):
 ################################################### function printOneRes(...)
 # expecting a namedtuple  similar to an instance of ConfigAndResults
 # print some parts of the content
-def printOneRes ( someResult):
+def printOneRes ( someResult , doAll):
 
   try : 
-     print (" %s %s, %s , %s " %  (someResult.codeRef ,someResult.modelStruct ,
+   if not doAll:
+     print (" %s, %s, %s, %s " %  (someResult.codeRef ,someResult.modelStruct ,
                     someResult.compInfo , someResult.timeStamp)) 
      print (" test Results %s  " % (someResult.testRes  )) 
      print ("\nhistory Params: %s " % (  someResult.histParams)) 
+     
+   else:     
+    print ( "(%s %s at:%s \ncompInfo %s\ninfo:%s\n\n%s\n%s) " % (someResult.codeRef , someResult.modelStruct ,      someResult.timeStamp , someResult.compInfo, someResult.info,
+    someResult.histDict , someResult.histParams ))
+
+     
+     
+     
   except Exception as e:
     print ("\n********** printOneRes()  fatal error %s" % ( str(e)))
     return None
@@ -313,21 +322,24 @@ def decode_stacked(document, pos=0, decoder=JSONDecoder()):
 def doProceedUserInput (theDumpFileName):
   # get  user input
   # rawinput no data conversion
-  myPrompt = "\nindStr [str] > " 
+  myPrompt = "\nindStr [moreStr] > " 
   print(myPrompt, end=' ')
+
   try:
+    theUserInfo ="""
+      explore the content of the dumpfile %s
+      if indStr== valid record indice       print part of the record
+      if indStr== s     get list of all records 
+      if indStr ==e     exit the Pgm
+      if indStr==validindice and moreStr==a   print the record
+      if indStr==validindice and moreStr==p   plot the history
+      """ % ( theDumpFileName)
+
     userStr= input()
     if (userStr == "" or userStr.lower().find('h') != -1 or 
              userStr.lower().find('?') != -1 ):
-      theInfo ="""
-      explore the content of the dumpfile %s
-      if indStr== valid record indice       get info about the record
-      if indStr== s     get list of all records 
-      if indStr ==e     exit the Pgm
-      if indStr==validindice and str==p   plot the history
-      """ % ( theDumpFileName)
     
-      print ( theInfo)
+      print ( theUserInfo)
       return   
     if (userStr.lower().find('s') != -1 ):
       # the user ask to see a summary of all records in the dumpfile
@@ -356,7 +368,10 @@ def doProceedUserInput (theDumpFileName):
     someRes = getOneResFromFile (theDumpFileName , ind=theInd)
     if (someRes):
         # print ("type(someRes): " , type(someRes))
-        printOneRes (someRes)
+        if (inputStr.lower() == 'a'):
+          printOneRes (someRes , True)
+        else :
+          printOneRes (someRes , False)
         if (inputStr.lower() == 'p'):
           plotHist(someRes)  
   except KeyboardInterrupt:
