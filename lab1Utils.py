@@ -18,20 +18,23 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix 
 from collections import namedtuple
 encoder.FLOAT_REPR = lambda o: format(o, '.4f')
-
-
-
 NOT_WHITESPACE = re.compile(r'[^\s]')
-theDummyDumpName = "./benchMark.dummy_json"
+sortFlg = False
 
 """
 Contains functions and the Class  ConfigAndResults meant to be used
-to dump on disk and read from disk history and params from a model
-using json 
+to access results and characteristics  from models is saved on disk as json string
+
+the functions are 
+dump some results on disk 
+read  results from disk
+present a summary if  of the records 
+ask the user for a indice to retrive a given record from the list
+
 
 Remember 
 dumps instance of ConfigAndResults  
-but when reading info from disk will get  a dictionnary representation of a  instance ConfigAndResults and not a real  instance of   ConfigAndResults
+but when reading info from disk will get  a dictionnary representation of a  instance ConfigAndResults and not a real  instance of   ConfigAndResults . there fore the use on namedtulped
 
 Remember that this file must on the python path to be imported
 """
@@ -72,9 +75,10 @@ class ConfigAndResults:
     selfDict = round_floats(self.__dict__)
     selfNT = namedtuple("selfNT", selfDict.keys())(*selfDict.values())
     
-    return "(%s %s at:%s \ncompInfo %s\ninfo:%s\n\n%s\n%s) " % (selfNT.codeRef , selfNT.modelStruct 
-    , selfNT.timeStamp , selfNT.compInfo, selfNT.info,
-    selfNT.histDict , selfNT.histParams )
+    return "(%s %s at:%s \ntestRes:%s\ncompInfo: %s\ninfo:%s\n\n%s\n%s) " %     (
+    selfNT.codeRef , selfNT.modelStruct , selfNT.timeStamp ,  
+     selfNT.testRes ,      selfNT.compInfo,      selfNT.info,
+    selfNT.histDict , selfNT.histParams ) 
 
 
 
@@ -85,6 +89,30 @@ def round_floats(o):
     if isinstance(o, dict): return {k: round_floats(v) for k, v in o.items()}
     if isinstance(o, (list, tuple)): return [round_floats(x) for x in o]
     return o
+
+
+##################################################### function sortArr ()
+# sort the array of dictionnary  in reverse order using the testAccuracy as a criteria for sorting
+
+def sortArr (theTests):
+  # print ("\n\n sortArr")
+  ii=0
+  valArr=[]
+  for someDict in theTests :
+    valArr.append(someDict['testRes'][1])
+
+  theNpArr = np.array(valArr)  
+  theArgSortArr =  np.argsort(theNpArr)
+  reverseSortedIndArr  = np.flip (theArgSortArr , 0) 
+
+  # create a new arr of resulted sorted  (inverse order )by the value of testRes
+  sortedTestRes = []
+  for theSortedInd in reverseSortedIndArr:
+    # print (theSortedInd)
+    sortedTestRes.append  ( theTests [theSortedInd])
+  return sortedTestRes  
+
+
 
 
 ################################################### function  dumpOnFile(...)
@@ -104,13 +132,13 @@ def dumpOnFile (someObj , theDumpFileName):
 # plot  acc (and val_acc if any ) in a subplot and 
 # and loss  (and val_loss if any ) 
 # given a instance of  ConfigAndResults or 
-# a  namedTulpe representing an instance of  ConfigAndResults
-def plotHist (someNamedTulpe ):
+# a  namedTuple representing an instance of  ConfigAndResults
+def plotHist (someNamedTuple ):
 
   try : 
-    theHistDict = someNamedTulpe.histDict
-    theTitle  = someNamedTulpe.codeRef + ", " +someNamedTulpe.modelStruct +\
-            ", "         + someNamedTulpe.info
+    theHistDict = someNamedTuple.histDict
+    theTitle  = someNamedTuple.codeRef + ", " +someNamedTuple.modelStruct +\
+            ", "         + someNamedTuple.info
 
     if not isinstance (theHistDict, dict) :
       print ("\n**** plotHist() failure expecting a dict and got: %s"  % (type(theHistDict)) )
@@ -163,75 +191,79 @@ def plotHist (someNamedTulpe ):
     print ("\n********** plotHist() fatal error: " , str(e))
   
 ################################################### function printAllFromFile(...)
-def printAllFromFile (theDumpFileName):
+def printAllFromFile (theDumpFileName , sorted=False):
+
   try : 
 
-    if (not os.path.isfile(theDumpFileName)):
-      print("printAllFromFile(), FATAL error %s is not a file"  %  ( theDumpFileName ) )
+    theTests = readAllFromFile (theDumpFileName)
+    if (theTests == None ):
+      print ("printAllFromFile (%s) error file  empty or invalid format" % (theDumpFileName))
       return
+    if (sorted):
+      theArr=sortArr(theTests)
+    else:
+      theArr=theTests
 
-    # now open a file for reading
-    filePtr2 = open(theDumpFileName, 'r')
-    document = filePtr2.read()
-    # print (document)
 
     ii=0
-    for obj in decode_stacked(document):
+    for someDict in theArr:
       ii+=1
-      print(" %2d : %s\n" % (ii, obj) )
+      print(" %2d : %s\n" % (ii, someDict) )
     print ("************************************************")
 
-    # close the file, just for safety
-    filePtr2.close()
   except Exception as e:
-    print ("\n********** printAllFromFile() fatal error " % (theDumpFileName , str(e)))
+    print ("\n********** printAllFromFile(%s)  fatal error :\n%s" % (theDumpFileName , str(e)))
+
+
 
 ################################################### function  printHeadersFromFile(...)
 # read dump file and print part of each dump 
 # remember that the results are all dictionnaries
-def printHeadersFromFile (theDumpFileName):
+# possibility to sort the array of dictionnary  in reverse order 
+# using the testAccuracy as a criteria for sorting
+
+def printHeadersFromFile (theDumpFileName , sorted=False):
+
   try : 
-
-    if (not os.path.isfile(theDumpFileName)):
-      print("printAllFromFile(), FATAL error %s is not a file "  %  ( theDumpFileName ) )
-      return
-
-    # now open a file for reading
-    filePtr2 = open(theDumpFileName, 'r')
-    document = filePtr2.read()
+    theTests = readAllFromFile (theDumpFileName)
+    if (sorted):
+      theArr=sortArr(theTests)
+    else:
+      theArr=theTests
 
     ii=0
-    for someDict in decode_stacked(document):
-      # use named tulpe to access the dict as it would be real instance of ConfigAndResults 
+    for someDict in theArr:
+      # use named tuple to access the dict as it would be real instance of ConfigAndResults 
       someNT = namedtuple("SomeNT", someDict.keys())(*someDict.values())
       print(" %2d, ref:%s at %s ,  model: %s , ,info: %s\n test[loss,acc]: %s\n" % 
       (ii, someNT.codeRef ,someNT.timeStamp , someNT.modelStruct , someNT.info,  someNT.testRes ) )
       ii+=1
     print ("************************************************")
 
-    # close the file, just for safety
-    filePtr2.close()
   except Exception as e:
     print ("\n********** printHeaderFromFile() %s fatal error %s" % (theDumpFileName , str(e)))
+
+
+
 
 
 ################################################### function getOneResFromFile(...)
 # read in dumpfile the info about  the object referenced by refStr or ind
 # return as a namedtuple  the first instance found
-def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 ):
+# the value of sorted should be the same as the one used for printHeadersFromFile
+def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 , sorted=False ):
   try : 
-    if (not os.path.isfile(theDumpFileName)):
-      print("getOneResFromFile(), FATAL error %s is not a file"  %  ( theDumpFileName ) )
-      return
+    theTests = readAllFromFile (theDumpFileName)
+    if (sorted):
+      theArr=sortArr(theTests)
+    else:
+      theArr=theTests
 
-    # now open a file for reading
-    filePtr2 = open(theDumpFileName, 'r')
-    document = filePtr2.read()
     ii=0
     foundRes=False
     # remember that the info  read from the dump file are  dictionnaries
-    for someDict in decode_stacked(document):
-      # use named tulpe to access the dict as it would be real instance of ConfigAndResults 
+    for someDict in theArr:
+      # use named tuple to access the dict as it would be real instance of ConfigAndResults 
       someNT = namedtuple("SomeNT", someDict.keys())(*someDict.values())
       if (ii == ind or someNT.timeStamp == refStr ):
         foundRes=True
@@ -242,12 +274,12 @@ def getOneResFromFile (theDumpFileName , refStr= "" , ind=-1 ):
     if not  foundRes:
       print ("getOneResFromFile() no results for file:%s ref:%s ind:%s" %
          ( theDumpFileName , refStr , ind ))
-    # close the file, just for safety
-    filePtr2.close()
     return None
   except Exception as e:
     print ("\n********** getOneResFromFile() %s fatal error %s" % (theDumpFileName , str(e)))
     return None
+
+
 
 
 ################################################### function printOneRes(...)
@@ -277,9 +309,11 @@ def printOneRes ( someResult , doAll):
 
 ################################################### function readAllFromFile ()
 def readAllFromFile (theDumpFileName):
+
+  # print ("readAllFromFile(%s)" % theDumpFileName)
   try : 
     if (not os.path.isfile(theDumpFileName)):
-      print("printAllFromFile(), FATAL error %s is not a file"  %  ( theDumpFileName ) )
+      print("readAllFromFile(),  error %s is not a file"  %  ( theDumpFileName ) )
       return
 
     theArr = []
@@ -296,7 +330,7 @@ def readAllFromFile (theDumpFileName):
     return theArr
 
   except Exception as e:
-    print ("\n********** readAllFromFile() fatal error " % (theDumpFileName , str(e)))
+    print ("\n********** readAllFromFile() fatal error :%s" % (theDumpFileName , str(e)))
 
 
 
@@ -320,6 +354,7 @@ def decode_stacked(document, pos=0, decoder=JSONDecoder()):
 ##################################### function doProceedUserInput
 
 def doProceedUserInput (theDumpFileName):
+  global sortFlg
   # get  user input
   # rawinput no data conversion
   myPrompt = "\nindStr [moreStr] > " 
@@ -329,7 +364,8 @@ def doProceedUserInput (theDumpFileName):
     theUserInfo ="""
       explore the content of the dumpfile %s
       if indStr== valid record indice       print part of the record
-      if indStr== s     get list of all records 
+      if indStr== s     summary : print list of all records 
+      if indStr== so     summary  ordered  print list of all records  best results first
       if indStr ==e     exit the Pgm
       if indStr==validindice and moreStr==a   print the record
       if indStr==validindice and moreStr==p   plot the history
@@ -341,10 +377,17 @@ def doProceedUserInput (theDumpFileName):
     
       print ( theUserInfo)
       return   
-    if (userStr.lower().find('s') != -1 ):
+    doPrintSummary =False
+    if (userStr.lower().find('so') != -1 ):
       # the user ask to see a summary of all records in the dumpfile
-      printHeadersFromFile (theDumpFileName)
-      return    
+      sortFlg = True
+      doPrintSummary =True
+    elif (userStr.lower().find('s') != -1 ):
+      sortFlg = False
+      doPrintSummary =True
+    if (doPrintSummary) :
+      printHeadersFromFile (theDumpFileName, sorted=sortFlg)
+      return
     if (userStr.lower().find('e') == 0 ):
       print ("doProceedUserInput() exit")
       sys.exit(1)
@@ -365,7 +408,7 @@ def doProceedUserInput (theDumpFileName):
       print ("doProceedUserInput invalid input %s should be an indice" % indStr)
       return
 
-    someRes = getOneResFromFile (theDumpFileName , ind=theInd)
+    someRes = getOneResFromFile (theDumpFileName , ind=theInd, sorted=sortFlg)
     if (someRes):
         # print ("type(someRes): " , type(someRes))
         if (inputStr.lower() == 'a'):
@@ -399,16 +442,14 @@ def doProceedUserInput (theDumpFileName):
 ############################################### main 
 #  test create an object and  dump it in the benchmark
 
+
 if __name__ == "__main__":
 
   doDump=False
+  theDummyDumpName = "dummy.json"
+
 
   if doDump:
-    """
-  def __init__(self,modelStruct, compInfo,histDict ,
-          histParams , timeStamp, info="" ,h5 = ""  , testRes = None):
-
-    """
     dummyHist={'h1':"dummy" , 'h2':"dummy"}
     dummyParams={'p1':"dummy" , 'p2':"dummy"}
     dummyObj = ConfigAndResults ('dummyinfo' , "dummy compilering info", 
@@ -418,28 +459,25 @@ if __name__ == "__main__":
 
     dumpOnFile (dummyObj , theDummyDumpName)
 
-  # retrieve all data from disk
-  print ("\n Try to retrieve content from  file %s  " %  theDumpFileName)
 
-  printAllFromFile()
+  doTestSorting=False
+  theDummyDumpName = "../repo/results.json"
+  printAllFromFile(theDummyDumpName)
 
-  print ("\n\n read allfrom file")
-  theTests = readAllFromFile (theDummyDumpName)
-  # print the first object
-  theInd=0
+  if (doTestSorting):
+    print ("\n\n present the resulted sorted bu test_accuracy  ")
+    theTests = readAllFromFile (theDummyDumpName)
+    sortedTestRes = sortArr (theTests)
   
-   # Parse JSON into an object with attributes corresponding to dict keys.
-  someElement = theTests[theInd]
-  print ( "\ntheTests[%d] has type  %s " % (theInd , type(someElement)))
+    print ("list of results sorted by  test accuracy , (inverse order))")
+    ii=0
+    for someDict in sortedTestRes :
+      someNT = namedtuple("SomeNT", someDict.keys())(*someDict.values())
+      # someNT.testRes is a list [loss ,acc] so the 2 el is the acc
+      print ("%d %f  %s  %s" % (ii , someNT.testRes[1] , 
+      someNT.codeRef , someNT.modelStruct ))
+      ii+=1
 
-  if  isinstance (someElement , dict) :
-    print ( "someElement['info']: " ,  someElement['info'])
-    print ( "someElement['histDict']: " ,  someElement['histDict'])
-    plotHist (someElement['histDict'] , someElement['info'])
-
-  else :
-    print ("failure %s is not a dict" % (type(someElement)))
-   
 print ("\n")
 
 
