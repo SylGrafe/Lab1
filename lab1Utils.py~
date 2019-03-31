@@ -19,7 +19,7 @@ from sklearn.metrics import confusion_matrix
 from collections import namedtuple
 encoder.FLOAT_REPR = lambda o: format(o, '.4f')
 NOT_WHITESPACE = re.compile(r'[^\s]')
-sortTheResults = False
+sortFlg = False
 
 """
 Contains functions and the Class  ConfigAndResults meant to be used
@@ -71,7 +71,7 @@ class ConfigAndResults:
 
   def toString (self):
     # print ("here in toString")
-    # full trick to be able to round the values of the floats
+    # no need too much precision , round the values of the floats 
     selfDict = round_floats(self.__dict__)
     selfNT = namedtuple("selfNT", selfDict.keys())(*selfDict.values())
     
@@ -89,6 +89,37 @@ def round_floats(o):
     if isinstance(o, dict): return {k: round_floats(v) for k, v in o.items()}
     if isinstance(o, (list, tuple)): return [round_floats(x) for x in o]
     return o
+
+
+##################################### function getMaxValAcc  ()
+def getMaxValAcc (someNamedTuple):
+# retrieve the max value in the array of val_acc 
+# retrun also the indice at which this max value was found 
+# and the length of the array of values
+    # print ("here in getMaxValAcc ()")
+    try : 
+      theHistDict = someNamedTuple.histDict
+      foundval_acc=False
+      for ki in theHistDict.keys():
+        if ki.find('val_acc') != -1 :
+          foundval_acc=True
+          theValues = theHistDict[ki]
+          maxVal= max (theValues)
+          indMaxVal = theValues.index (maxVal)
+          maxValDict = { indMaxVal, maxVal}
+          # print ( " max : val_acc[%d]  == %f" %( indMaxVal , maxVal ) )
+          return maxVal , indMaxVal , len(theValues)
+      if not   foundval_acc : 
+          print ("doSomeTest val_acc not found  " )
+          return None  
+
+    except Exception as e:
+      exceptVar = traceback.format_exc()
+      print( "exception while  doSomeTest   " )
+      print( exceptVar   )
+      return None
+
+
 
 
 ##################################################### function sortArr ()
@@ -127,6 +158,23 @@ def dumpOnFile (someObj , theDumpFileName):
 
     # close the file, and your pickling is complete
     theDumpFile.close()
+    
+
+    
+
+################################################### function plotHistogram(...)
+# plot a histogram of labels values given a encodedlist of labels
+def plotHistogram (encodedList ):
+  decodedList=[]  
+  for i in range(encodedList.shape[0]):
+    encoded_label = encodedList[i]
+    labelVal = np.argmax (encodedList[i])
+    decodedList.append(labelVal)
+  plt.hist( decodedList, bins=20) 
+  plt.xlabel('labels')
+  plt.ylabel('nbofLabels')
+  #Display histogram
+  plt.show()    
 
 ################################################### function plotHist(...)
 # plot  acc (and val_acc if any ) in a subplot and 
@@ -232,11 +280,28 @@ def printHeadersFromFile (theDumpFileName , sorted=False):
       theArr=theTests
 
     ii=0
+    print(" indice <codeRef> timeStample, modelStruct, info "  )
+    print("test[loss,acc] <--> max (val_acc) at i/nb epochs:\n")
+
     for someDict in theArr:
       # use named tuple to access the dict as it would be real instance of ConfigAndResults 
       someNT = namedtuple("SomeNT", someDict.keys())(*someDict.values())
-      print(" %2d, ref:%s at %s ,  model: %s , ,info: %s\n test[loss,acc]: %s\n" % 
-      (ii, someNT.codeRef ,someNT.timeStamp , someNT.modelStruct , someNT.info,  someNT.testRes ) )
+      # retrieve the best val accuracy  
+      maxVal , indMaxVal , nbOfEpochs = getMaxValAcc(someNT)
+
+      """
+      print(" %2d %s at %s ,  model: %s ,info: %s" % 
+      (ii, someNT.codeRef ,someNT.timeStamp , someNT.modelStruct , someNT.info ) )
+      print("test[loss,acc]: %s , max (val_acc)= %s at %d/%d epochs:\n" % 
+      ( someNT.testRes  , maxVal , indMaxVal , nbOfEpochs ) )
+      """
+
+      print(" %2d <%s> %s,  %s, %s" % 
+      (ii, someNT.codeRef ,someNT.timeStamp , someNT.modelStruct , someNT.info ) )
+      print(" %s <--> %s at %d/%d:\n" % 
+      ( someNT.testRes  , maxVal , indMaxVal , nbOfEpochs ) )
+
+
       ii+=1
     print ("************************************************")
 
@@ -289,16 +354,25 @@ def printOneRes ( someResult , doAll):
 
   try : 
    if not doAll:
-     print (" %s, %s, %s, %s " %  (someResult.codeRef ,someResult.modelStruct ,
+     print ("%s, %s, %s, %s " %  (someResult.codeRef ,someResult.modelStruct ,
                     someResult.compInfo , someResult.timeStamp)) 
-     print (" test Results %s  " % (someResult.testRes  )) 
+     print (someResult.info)
+     print ("test Results %s  " % (someResult.testRes  )) 
+     # for fun show also the best val accuracy
+     maxVal , indMaxVal , nbOfEpochs = getMaxValAcc(someResult)
+     print ("best val accuracy: at epochs  %d /%d  value %s" % ( indMaxVal , nbOfEpochs , maxVal ) )
      print ("\nhistory Params: %s " % (  someResult.histParams)) 
      
    else:     
-    print ( "(%s %s at:%s \ncompInfo %s\ninfo:%s\n\n%s\n%s) " % (someResult.codeRef , someResult.modelStruct ,      someResult.timeStamp , someResult.compInfo, someResult.info,
-    someResult.histDict , someResult.histParams ))
-
-     
+     print ("%s, %s, %s, %s " %  (someResult.codeRef ,someResult.modelStruct ,
+                    someResult.compInfo , someResult.timeStamp)) 
+     print (someResult.info)
+     print ("test Results %s  " % (someResult.testRes  )) 
+     # for fun show also the best val accuracy
+     maxVal , indMaxVal , nbOfEpochs = getMaxValAcc(someResult)
+     print ("best val accuracy: at epochs  %d /%d  value %s" % ( indMaxVal , nbOfEpochs , maxVal ) )
+     print ("\nhistory Params: %s " % (  someResult.histParams)) 
+     print ("\nFist history: %s " % (  someResult.histDict)) 
      
      
   except Exception as e:
@@ -351,10 +425,10 @@ def decode_stacked(document, pos=0, decoder=JSONDecoder()):
         yield obj
 
 
-##################################### function doProceedUserInput
+##################################### function doProceedUserInput ()
 
 def doProceedUserInput (theDumpFileName):
-  global sortTheResults
+  global sortFlg
   # get  user input
   # rawinput no data conversion
   myPrompt = "\nindStr [moreStr] > " 
@@ -364,29 +438,30 @@ def doProceedUserInput (theDumpFileName):
     theUserInfo ="""
       explore the content of the dumpfile %s
       if indStr== valid record indice       print part of the record
-      if indStr== s     summary : print list of all records 
-      if indStr== so     summary  ordered  print list of all records  best results first
+      if indStr== s     summary : print list of all records  in the file
+      if indStr== o     ordered summary , best results first
       if indStr ==e     exit the Pgm
-      if indStr==validindice and moreStr==a   print the record
-      if indStr==validindice and moreStr==p   plot the history
+      if indStr==validindice and moreStr==a   print the record 
+      if indStr==validindice and moreStr==p   print part of  the record and plot the history
       """ % ( theDumpFileName)
 
     userStr= input()
+    print ("...%s..." % userStr)
     if (userStr == "" or userStr.lower().find('h') != -1 or 
-             userStr.lower().find('?') != -1 ):
+             userStr.lower().strip().find('?') != -1 ):
     
       print ( theUserInfo)
       return   
     doPrintSummary =False
-    if (userStr.lower().find('so') != -1 ):
+    if (userStr.lower().strip().find('o') == 0 ):
       # the user ask to see a summary of all records in the dumpfile
-      sortTheResults = True
+      sortFlg = True
       doPrintSummary =True
-    elif (userStr.lower().find('s') != -1 ):
-      sortTheResults = False
+    elif (userStr.lower().strip().find('s') == 0 ):
+      sortFlg = False
       doPrintSummary =True
     if (doPrintSummary) :
-      printHeadersFromFile (theDumpFileName, sorted=sortTheResults)
+      printHeadersFromFile (theDumpFileName, sorted=sortFlg)
       return
     if (userStr.lower().find('e') == 0 ):
       print ("doProceedUserInput() exit")
@@ -408,7 +483,7 @@ def doProceedUserInput (theDumpFileName):
       print ("doProceedUserInput invalid input %s should be an indice" % indStr)
       return
 
-    someRes = getOneResFromFile (theDumpFileName , ind=theInd, sorted=sortTheResults)
+    someRes = getOneResFromFile (theDumpFileName , ind=theInd, sorted=sortFlg)
     if (someRes):
         # print ("type(someRes): " , type(someRes))
         if (inputStr.lower() == 'a'):
@@ -439,6 +514,9 @@ def doProceedUserInput (theDumpFileName):
 
 
 
+
+
+
 ############################################### main 
 #  test create an object and  dump it in the benchmark
 
@@ -460,14 +538,14 @@ if __name__ == "__main__":
     dumpOnFile (dummyObj , theDummyDumpName)
 
 
-  doTestSorting=False
+  doTestSorting=True
   theDummyDumpName = "../repo/results.json"
-  printAllFromFile(theDummyDumpName)
+  # printAllFromFile(theDummyDumpName)
 
   if (doTestSorting):
-    print ("\n\n present the resulted sorted bu test_accuracy  ")
+    print ("\n\n present the results  sorted by  some criteria  ")
     theTests = readAllFromFile (theDummyDumpName)
-    sortedTestRes = sortArr (theTests)
+    sortedTestRes = sortArr2 (theTests)
   
     print ("list of results sorted by  test accuracy , (inverse order))")
     ii=0
@@ -477,6 +555,16 @@ if __name__ == "__main__":
       print ("%d %f  %s  %s" % (ii , someNT.testRes[1] , 
       someNT.codeRef , someNT.modelStruct ))
       ii+=1
+
+
+
+
+  doSomeTest=False
+  if (doSomeTest):
+    theDummyDumpName = "../repo/results.json"
+    someRes = getOneResFromFile (theDummyDumpName  , ind=0)
+    print ("testing  getMaxValAcc:  " , getMaxValAcc (someRes) )    
+
 
 print ("\n")
 
